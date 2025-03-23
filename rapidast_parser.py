@@ -26,43 +26,50 @@ parser.add_argument('--file', dest='file',
                     default="zap-report.json",
                     help='Select rapidast file result to parse (default: zap-report.json)')
 
+# Default tool is 'zap', so we don't break compatibility with users using the script with default values.
+parser.add_argument('--tool', dest='tool', choices=['zap', 'garak'],
+                    default="zap",
+                    help='Select tool whose file we want to parse')
+
 parser.add_argument('--output', dest='output_destination',
                     default= r"results/" + file_name,
                     help='Select name of results file (the extension should be csv). If no file is specified, a default parsed_results_<date>.csv file will be used. ')
 
 args = parser.parse_args()
 f = open(args.file)
-data = json.load(f)
-alerts = data['site'][0]['alerts']
-parsedalerts = []
+
+if args.tool == "zap":
+    data = json.load(f)
+    alerts = data['site'][0]['alerts']
+    parsedalerts = []
 
 
-for alert in alerts:
-    risk = mapping_values[alert['riskcode']]
-    name = alert['name']
-    description = alert['desc']
-    solution = alert['solution']
-    cwe = cwe_url.replace('{{cwe_id}}', alert['cweid'])
-    instances = alert['instances']
-    parsed_instances = []
-    for instance in instances:
-        parsed_instances.append(instance['uri'])
+    for alert in alerts:
+        risk = mapping_values[alert['riskcode']]
+        name = alert['name']
+        description = alert['desc']
+        solution = alert['solution']
+        cwe = cwe_url.replace('{{cwe_id}}', alert['cweid'])
+        instances = alert['instances']
+        parsed_instances = []
+        for instance in instances:
+            parsed_instances.append(instance['uri'])
 
-    confidence = mapping_values[alert['confidence']]
-    zap_alert = zap_url.replace('{{alert_id}}', alert['alertRef'])
+        confidence = mapping_values[alert['confidence']]
+        zap_alert = zap_url.replace('{{alert_id}}', alert['alertRef'])
 
-    parsed_alert = [risk,name,description,solution,cwe,parsed_instances,confidence, zap_alert]
-    parsedalerts.append(parsed_alert)
+        parsed_alert = [risk,name,description,solution,cwe,parsed_instances,confidence, zap_alert]
+        parsedalerts.append(parsed_alert)
 
-parsed_path = os.path.normpath(args.output_destination)
+    parsed_path = os.path.normpath(args.output_destination)
 
-check_names(parsed_path)
+    check_names(parsed_path)
 
-with open(parsed_path, 'x', newline='') as file:
-    writer = csv.writer(file)
-    information = [data['site'][0]['@name'], "Port = " + data['site'][0]['@port'], "SSL = " + data['site'][0]['@ssl']]
-    writer.writerow(information)
-    field = ["Risk", "Name", "Description", "Solution", "CWE", "Affected Instances (Short form)", "Confidence", "Alert information"]
-    writer.writerow(field)
-    for elem in parsedalerts:
-        writer.writerow(elem)
+    with open(parsed_path, 'x', newline='') as file:
+        writer = csv.writer(file)
+        information = [data['site'][0]['@name'], "Port = " + data['site'][0]['@port'], "SSL = " + data['site'][0]['@ssl']]
+        writer.writerow(information)
+        field = ["Risk", "Name", "Description", "Solution", "CWE", "Affected Instances (Short form)", "Confidence", "Alert information"]
+        writer.writerow(field)
+        for elem in parsedalerts:
+            writer.writerow(elem)
