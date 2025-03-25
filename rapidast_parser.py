@@ -21,12 +21,23 @@ mapping_values = dict([
     ('3', 'High')
 ])
 
+zap_alert_properties = ["pluginid", "alertRef", "alert", "name", "riskcode", "confidence", "riskdesc", "desc",
+                        "instances"]
+zap_specific_properties = ["uri", "method", "param", "attack", "evidence", "otherinfo", "request-header",
+                           "request-body", "response-header", "response-body"]
+
+
 cwe_url = "https://cwe.mitre.org/data/definitions/{{cwe_id}}.html"
 zap_url = "https://www.zaproxy.org/docs/alerts/{{alert_id}}/"
 
 file_name = "parsed_results_" + datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + ".csv"
 
 parser = argparse.ArgumentParser(description='Select file to parse.')
+parser.add_argument('--exclude', dest='exclusions', nargs='+',
+                    default="",
+                    help='Use this flag to exclude results from the result file. To add more than one exclusion '
+                         'separate them with a blank space')
+
 parser.add_argument('--file', dest='file',
                     default="report.json",
                     help='Select rapidast file result to parse (default: zap-report.json)')
@@ -41,6 +52,16 @@ parser.add_argument('--output', dest='output_destination',
                     help='Select name of results file (the extension should be csv). If no file is specified, a default parsed_results_<date>.csv file will be used. ')
 
 args = parser.parse_args()
+
+exclusions = []
+if args.exclusions:
+    for elem in args.exclusions:
+        single_exclusion = {}
+        tmp_property = elem.split(",")
+        for property in tmp_property:
+            split_property = property.split(":")
+            single_exclusion[split_property[0]] = split_property[1]
+        exclusions.append(single_exclusion)
 f = open(args.file)
 
 if args.tool == "zap":
@@ -59,11 +80,38 @@ if args.tool == "zap":
         for instance in instances:
             parsed_instances.append(instance['uri'])
 
+        exclusion_skip = []
+        skip = False
+        for exclusion in exclusions:
+            for k, v in exclusion.items():
+                if k in zap_alert_properties:
+                    if k in alert:
+                        if v == alert[k]:
+                            skip = True
+                        else:
+                            skip = False
+                            break
+                elif k in zap_specific_properties:
+                    for instance in instances:
+                        if k in instance:
+                            if v in instance[k]:
+                                parsed_instances.remove(instance['uri'])
+                    if not parsed_instances:
+                        skip = True
+                    else:
+                        skip = False
+            exclusion_skip.append(skip)
+
+
         confidence = mapping_values[alert['confidence']]
         zap_alert = zap_url.replace('{{alert_id}}', alert['alertRef'])
 
-        parsed_alert = [risk, name, description, solution, cwe, parsed_instances, confidence, zap_alert]
-        parsedalerts.append(parsed_alert)
+        if True in exclusion_skip:
+            print("Skipping alert...")
+        else:
+            parsed_alert = [risk, name, description, solution, cwe, parsed_instances, confidence, zap_alert]
+            parsedalerts.append(parsed_alert)
+
 
     parsed_path = os.path.normpath(args.output_destination)
 

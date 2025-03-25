@@ -7,13 +7,18 @@ This small python script is used in order to generate a .csv file that will help
 The options provided by the scripts are very simple:
 
 ```
-usage: rapidast_parser.py [-h] [--file FILE] [--tool {zap,garak}]
+usage: rapidast_parser.py [-h] [--exclude EXCLUSIONS [EXCLUSIONS ...]]
+                          [--file FILE] [--tool {zap,garak}]
                           [--output OUTPUT_DESTINATION]
 
 Select file to parse.
 
 optional arguments:
   -h, --help            show this help message and exit
+  --exclude EXCLUSIONS [EXCLUSIONS ...]
+                        Use this flag to exclude results from the result file.
+                        To add more than one exclusion separate them with a
+                        blank space
   --file FILE           Select rapidast file result to parse (default: zap-
                         report.json)
   --tool {zap,garak}    Select tool whose file we want to parse
@@ -35,6 +40,15 @@ or
 ```
 python3 rapidast_parser.py --tool garak --file report-hitlog.jsonl
 ```
+
+## Exclusions
+
+In order to exclude findings from the results, the user can remove them by using the `--exclude` flag:
+```
+python3 rapidast_parser.py --tool zap --file zap-report.jsonl --exclude pluginid:40018,response-header:"HTTP/1.1 401 Unauthorized" pluginid:10000,method:POST
+```
+To exclude the findings, take the properties you don't want to have from the original results file and create a string by concatenating the field and the value with a `:` symbol. If you want to exclude more than one results, separate them using a blank space.
+If the key is inside any of the instances nodes, that instance will be removed!
 
 ## GitHub Actions
 
